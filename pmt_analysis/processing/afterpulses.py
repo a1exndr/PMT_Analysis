@@ -145,7 +145,13 @@ class AfterPulses:
                           'use df.input_data_converted attribute instead.')
             self.input_data = np.array(['Removed to save memory, use df.input_data_converted attribute instead.'])
 
+        # make an empty numpy array to fill
+        n = input_data_converted.shape[0] * 10
+        dt = np.dtype([('idx', np.int32), ('input_data_converted', object), ('input_data_std', np.float64), ('p0_position', np.int32), ('p1_position', np.int32)])
+        arr = np.zeros(n, dtype=dt)
+
         idx = 0
+        arr_idx = 0
         for i, el in tqdm(enumerate(input_data_converted)):  # TODO: try to vectorize
             peak_positions, _ = find_peaks(el,
                                            height=height,
@@ -155,14 +161,23 @@ class AfterPulses:
                 p0_position = peak_positions[0]
                 input_data_std = self.input_data_std[i]
                 for p1_position in peak_positions[1:]:
-                    df_add = pd.DataFrame({'idx': [idx],
-                                           'input_data_converted': [el.tolist()],
-                                           'input_data_std': input_data_std,
-                                           'p0_position': [p0_position],
-                                           'p1_position': [p1_position]})
-                    self.df = pd.concat([self.df, df_add])
+                    arr[arr_idx]['idx'] = idx
+                    arr[arr_idx]['input_data_converted'] = el.tolist()
+                    arr[arr_idx]['input_data_std'] = input_data_std
+                    arr[arr_idx]['p0_position'] = p0_position
+                    arr[arr_idx]['p1_position'] = p1_position
+                    arr_idx += 1
+                    # df_add = pd.DataFrame({'idx': [idx],
+                    #                        'input_data_converted': [el.tolist()],
+                    #                        'input_data_std': input_data_std,
+                    #                        'p0_position': [p0_position],
+                    #                        'p1_position': [p1_position]})
+                    # self.df = pd.concat([self.df, df_add])
                 idx += 1
-        self.df.reset_index(drop=True, inplace=True)
+        # trim
+        arr = arr[:arr_idx]
+        # self.df.reset_index(drop=True, inplace=True)
+        self.df = pd.DataFrame(arr)
 
     def constrain_main_peak(self, trim: bool = True):
         """Identify whether the first found pulse is a viable candidate for the main pulse
